@@ -1,3 +1,3 @@
-C:/Users/bbrow/Documents/College/22SS/CS3050/Assignments/Programming_Assignment_1/cmake-build-debug/CMakeFiles/Programming_Assignment_1.dir
-C:/Users/bbrow/Documents/College/22SS/CS3050/Assignments/Programming_Assignment_1/cmake-build-debug/CMakeFiles/edit_cache.dir
-C:/Users/bbrow/Documents/College/22SS/CS3050/Assignments/Programming_Assignment_1/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+C:/Users/bbrow/Documents/College/22SS/CS3050/MiniFacebookApp/cmake-build-debug/CMakeFiles/Programming_Assignment_1.dir
+C:/Users/bbrow/Documents/College/22SS/CS3050/MiniFacebookApp/cmake-build-debug/CMakeFiles/edit_cache.dir
+C:/Users/bbrow/Documents/College/22SS/CS3050/MiniFacebookApp/cmake-build-debug/CMakeFiles/rebuild_cache.dir

@@ -1,31 +1,48 @@
 #include <assert.h>
 #include "Hash.h"
 
-//  Hash Function by Dan Bernstein
-unsigned long hash(char *str){
+//  grow the table by the GROWTH_FACTOR
+static void grow(HashTable *ht){
+    HashTable *ht2, swap;
+
+    ht2 = createHashTable(ht->size * GROWTH_FACTOR);
+    for(int i = 0; i < ht->size; i++){
+        hashInsert(ht2, ht->table[i]->name);
+    }
+
+    swap = *ht;
+    *ht = *ht2;
+    *ht2 = swap;
+
+    freeHashTable(ht2);
+}
+
+//  Hash function by Dan Bernstein
+static unsigned long hash(const char *str){
     unsigned long hash = 5381;
     int c;
 
     while (c = *str++)
         hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
 
-    return hash % TABLE_SIZE;
+    return hash;
 }
 
-//  Creates and returns a new node with name = "\0"
-Node *createNode(char *name){
+//  Creates and returns a new node
+static Node *createNode(const char *name){
     Node *newNode = malloc(sizeof(Node));
     if(newNode) {
         newNode->next = NULL;
         newNode->friends = NULL;
-        newNode->name = name;
+        newNode->name = malloc(sizeof(char) * strlen(name)+1);
+        strcpy(newNode->name, name);
         newNode->numberOfFriends = 0;
     }
     return newNode;
 }
 
 //  Create a new hash table
-HashTable *newHashTable(unsigned long size){
+HashTable *createHashTable(const unsigned long size){
     HashTable *newTable = malloc(sizeof(HashTable));
 
     if(!newTable){
@@ -34,11 +51,15 @@ HashTable *newHashTable(unsigned long size){
 
     newTable->size = size;
     newTable->n = 0;
-    newTable->table = malloc(size * sizeof(Node));
+    newTable->table = malloc(newTable->size * sizeof(Node*));
 
     if(!newTable->table){
         free(newTable);
         return NULL;
+    }
+
+    for(int i = 0; i < newTable->size; i++){
+        newTable->table[i] = NULL;
     }
 
     return newTable;
@@ -49,68 +70,79 @@ void freeHashTable(HashTable *ht){
     Node *cursor = NULL, *next = NULL;
     for(int i = 0; i < ht->size; i++){
         cursor = ht->table[i];
-        do {
+        while (cursor != NULL){
             next = cursor->next;
             free(cursor);
             cursor = next;
-        } while (cursor != NULL);
+        }
     }
     free(ht->table);
     free(ht);
 }
 
-// Resize the memory allocated to name to the minimum amount
-//  Saves time and space
-void resize(char *name){
-    int len = strlen(name);
-    name = realloc(name, (len+1) * sizeof(char));
+//  Searches for a specific key within the table
+Node *hashSearch(HashTable *ht, const char *key){
+    for (Node *cursor = ht->table[hash(key) % ht->size]; cursor != NULL; cursor = cursor->next) {
+        if (!strcmp(cursor->name, key)) {
+            return cursor;
+        }
+    }
+    return NULL;
 }
 
-bool isNullNode(HashTable *ht, unsigned long index){
-    if(ht->table[index]->name == NULL)
-        return true;
-    return false;
-}
+//  Inserts a provided name into the hash table
+void hashInsert(HashTable *ht, const char *name){
+    Node *newNode;
+    unsigned long h;
 
-//  NOTE: the node pointed to cannot equal null or program will segfault
-bool userExists(HashTable *ht, char *name, unsigned long index){
+    assert(name);
 
-    // if the hash index isnt NULL, there are two possibilities:
-    //  A user with the same name already exists
-    //  A user with a different name was hashed to the same index
-    if(strcmp(ht->table[index]->name, name) == 0){
-        return true;
+    if(hashSearch(ht, name)){
+        return;
     }
 
-    return false;
+    newNode = createNode(name);
+
+    assert(newNode);
+
+    h = hash(name) % ht->size;
+
+    newNode->next = ht->table[h];
+    ht->table[h] = newNode;
+
+    ht->n++;
+
+    if(ht->n >= ht->size * MAX_LOAD_FACTOR)
+        grow(ht);
 }
 
-//  Inserts a new user at the head position
-bool handleCollision(HashTable *ht, char *name, unsigned long index){
-    Node *new_Node = createNode(name);
-    if(new_Node) {
-        new_Node->next = ht->table[index];
-        ht->table[index] = new_Node;
-        return true;
-    }
-    return false;
+void addFriend(HashTable *ht, const char *name1, const char *name2){
+    Node *node1 = hashSearch(ht, name1), *node2 = hashSearch(ht, name2);
+    if(!node1 || !node2)
+        return;
+
+    node1->numberOfFriends++;
+    node2->numberOfFriends++;
+
+    node1->friends = realloc(node1->friends, node1->numberOfFriends * sizeof(Node*));
+    node2->friends = realloc(node2->friends, node2->numberOfFriends *  sizeof(Node*));
+
+    node1->friends[node1->numberOfFriends-1] = node2;
+    node2->friends[node2->numberOfFriends-1] = node1;
 }
 
-bool insertFriend(HashTable *ht, Node *f1, Node *f2){
-    f1->numberOfFriends++;
-    f2->numberOfFriends++;
-    f1->friends = realloc(f1->friends, f1->numberOfFriends * sizeof(Node*));
-    f2->friends = realloc(f2->friends, f2->numberOfFriends *  sizeof(Node*));
-    f1->friends[f1->numberOfFriends-1] = f2;
-    f2->friends[f2->numberOfFriends-1] = f1;
-    return  (f1->friends[f1->numberOfFriends-1] == f2) && (f2->friends[f2->numberOfFriends-1] == f1);
-}
-
-bool hasFriend(HashTable *ht, Node *target, Node *query){
-    unsigned long num_of_friends = sizeof(target->friends)/sizeof(Node*);
-    for(int i = 0; i < num_of_friends; i++){
-        if(target->friends[i] == query)
-            return true;
+bool queryFriend(HashTable *ht, const char *name1, const char *name2){
+    Node *node1 = hashSearch(ht, name1), *node2 = hashSearch(ht, name2);
+    if(!node1 || !node2)
+        return false;
+    for(int i = 0; i < node1->numberOfFriends; i++){
+        if(node1->friends[i] == node2){
+            for(int j = 0; j < node2->numberOfFriends; j++){
+                if(node2->friends[j] == node1)
+                    return true;
+            }
+            break;
+        }
     }
     return false;
 }
