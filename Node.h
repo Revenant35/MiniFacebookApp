@@ -2,19 +2,20 @@
 #ifndef PROGRAMMING_ASSIGNMENT_1_NODE_H
 #define PROGRAMMING_ASSIGNMENT_1_NODE_H
 
-#include <stdbool.h>
+typedef struct node_struct Node;
+
 #include "friends.h"
 
-typedef struct node_struct Node;
 struct node_struct {
     Node *next;
     char *name;
-    FriendList friendList;
+    FriendNode *head;
 };
 
-Node *createNode(const char *);
 
-const char *delNode(Node **, char *);
-void addNode(Node **, Node *);
+Node *createNode(const char *);
+const char *freeNode(Node *target);
+const char *deleteNode(Node **, const char *);
+void addNode(Node **, const char *);
 
 #endif //PROGRAMMING_ASSIGNMENT_1_NODE_H

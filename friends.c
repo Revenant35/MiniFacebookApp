@@ -1,69 +1,99 @@
 
-#include "friends.h"
 #include <stdlib.h>
-#include <string.h>
 #include <stdio.h>
+#include "friends.h"
 
-FriendList createList(){
-    FriendList list = malloc(sizeof(FriendList*));
-    list->head = NULL;
-    list->num_of_friends = 0;
-    return list;
-}
-
-static FriendNode *createFriendNode(const char *name){
+static FriendNode *createFriendNode(Node *friend){
     FriendNode *newNode = malloc(sizeof(FriendNode));
     if(newNode) {
         newNode->next = NULL;
-        newNode->name = malloc(sizeof(char) * (strlen(name) + 1));
-        strcpy(newNode->name, name);
+        newNode->friend = friend;
     }
     return newNode;
 }
 
-static const char *freeFriendNode(FriendNode **node){
-    const char *name = (*node)->name;
+static Node *freeFriendNode(FriendNode **node){
+    Node *friend = (*node)->friend;
     free(*node);
-    return name;
+    return friend;
 }
 
-void freeFriendsList(FriendList fl){
+static void freeFriendsList(FriendNode *head){
     FriendNode *curr;
 
-    while(fl->head){
-        curr = fl->head;
-        fl->head = fl->head->next;
+    while(head){
+        curr = head;
+        head = head->next;
         freeFriendNode(&curr);
     }
 }
 
-void addFriendAtHead(FriendList fl, const char *name){
+void unsafeDeleteFriendsList(Node *self){
+    freeFriendsList(self->head);
+}
 
-    if(!fl || !name){
-        fprintf(stderr, "ERROR: INVALID INPUT TO FUNTION internalAddFriendAtHead\n");
+void safeDeleteFriendsList(Node *self){
+    FriendNode *curr = self->head;
+
+    while(curr){
+        deleteFriend(curr->friend->head, self);
+        curr = curr->next;
+    }
+
+    freeFriendsList(self->head);
+}
+
+static void internalInsert(FriendNode **head, Node *friend){
+
+    FriendNode *newNode = createFriendNode(friend);
+
+    newNode->next = *head;
+    *head = newNode;
+
+}
+
+static void internalDelete(FriendNode **head, Node *friend){
+
+    FriendNode *temp = *head, *prev;
+
+    if(temp && temp->friend == friend){
+        *head = temp;
+        freeFriendNode(&temp);
         return;
     }
 
-    if(searchForFriend(fl, name) != NULL){
+    while(temp && temp->friend != friend){
+        prev = temp;
+        temp = temp->next;
+    }
+
+    if(temp){
+        prev->next = temp->next;
+        freeFriendNode(&temp);
+    }
+
+}
+
+void insertFriend(FriendNode *head, Node *friend){
+
+    if(!friend){
+        fprintf(stderr, "ERROR: INVALID INPUT TO FUNTION addFriend\n");
+        return;
+    }
+
+    if(searchForFriend(head, friend) != NULL){
         fprintf(stderr, "ERROR: USER ALREADY EXISTS IN THIS FRIENDLIST\n");
         return;
     }
 
-    FriendNode *newNode = createFriendNode(name);
-
-    if(!newNode)
-        return;
-
-    newNode->next = fl->head;
-    fl->head = newNode;
-    fl->num_of_friends++;
+    internalInsert(&head, friend);
 }
 
-FriendNode *searchForFriend(FriendList fl, const char *name){
-    FriendNode *cursor = fl->head;
+FriendNode *searchForFriend(FriendNode *head, Node *friend){
+    FriendNode *cursor = head;
 
     while(cursor){
-        if(!strcmp(cursor->name, name))
+        if(cursor->friend == friend)
             return cursor;
         cursor = cursor->next;
     }
@@ -71,25 +101,17 @@ FriendNode *searchForFriend(FriendList fl, const char *name){
     return NULL;
 }
 
-const char *deleteFriend(FriendList fl, const char *name){
-    FriendNode *temp = fl->head, *prev;
+void deleteFriend(FriendNode *head, Node *friend){
 
-    if(temp && !strcmp(temp->name, name)){
-        fl->head = temp->next;
-        fl->num_of_friends--;
-        return (freeFriendNode(&temp));
+    if(!friend){
+        fprintf(stderr, "ERROR: INVALID INPUT TO FUNTION deleteFriend\n");
+        return;
     }
 
-    while(temp && strcmp(temp->name, name) != 0){
-        prev = temp;
-        temp = temp->next;
+    if(searchForFriend(head, friend) != NULL){
+        fprintf(stderr, "ERROR: USER ALREADY EXISTS IN THIS FRIENDLIST\n");
+        return;
     }
 
-    if(temp){
-        prev->next = temp->next;
-        fl->num_of_friends--;
-        return (freeFriendNode(&temp));
-    }
-
-    return NULL;
+    internalDelete(&head, friend);
 }

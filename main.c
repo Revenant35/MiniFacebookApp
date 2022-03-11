@@ -2,12 +2,29 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <ctype.h>
 #include "Node.h"
 #include "Hash.h"
-#include "Utility.h"
-#include "friends.h"
 
 #define MAX_INPUT_SIZE (130)
+
+
+//  Formats a given name
+char *formatName(char *name){
+
+    if(!name)
+        return NULL;
+
+    unsigned int len = strlen(name);
+
+    name[0] = (signed char) toupper(name[0]);
+
+    for(int i = 1; i < len; i++){
+        (name[i]) = (signed char) tolower(name[i]);
+    }
+
+    return name;
+}
 
 //  Adds a user to the hash table in O(1) time
 void addUser(HashTable ht, const char *name){
@@ -20,21 +37,21 @@ void addUser(HashTable ht, const char *name){
 }
 
 //  Deletes a user in approximately O(1) time
-//void deleteUser(HashTable ht, char *name){
-//    Node *node;
-//
-//    if(!ht || !name){
-//        fprintf(stderr, "FORMATTING ERROR: l <name>\n");
-//        return;
-//    }
-//
-//    node = hashSearch(ht, name);
-//
-//    if(!node)
-//        return;
-//
-//    delNode(&node, name);
-//}
+void deleteUser(HashTable ht, char *name){
+    Node *node;
+
+    if(!ht || !name){
+        fprintf(stderr, "FORMATTING ERROR: l <name>\n");
+        return;
+    }
+
+    node = hashSearch(ht, name);
+
+    if(!node)
+        return;
+
+    deleteNode(&node, name);
+}
 
 //  Prints all users in system in O(n) time where n is
 //      the size of the table
@@ -67,8 +84,8 @@ void addFriend(HashTable ht, const char *name1, const char *name2){
     if(!node1 || !node2 || node1==node2)
         return;
 
-    addFriendAtHead(node1->friendList, name2);
-    addFriendAtHead(node2->friendList, name1);
+    insertFriend(node1->head, node2);
+    insertFriend(node2->head, node1);
 }
 
 //  Deletes the friendship-link between two users in O(m) time
@@ -87,8 +104,8 @@ void delFriend(HashTable ht, const char *name1, const char *name2){
     if(!node1 || !node2 || node1==node2)
         return;
 
-    deleteFriend(node1->friendList, name2);
-    deleteFriend(node2->friendList, name1);
+    deleteFriend(node1->head, node2);
+    deleteFriend(node2->head, node1);
 }
 
 //  Sees if two users are friends in O(m) time where m is
@@ -109,7 +126,7 @@ void queryFriend(HashTable ht, const char *name1, const char *name2){
     if(!node1 || !node2)
         return;
 
-    printf(searchForFriend(node1->friendList, name2) && searchForFriend(node2->friendList, name1) ? "Yes\n" : "No\n");
+    printf(searchForFriend(node1->head, node2) && searchForFriend(node2->head, node1) ? "Yes\n" : "No\n");
 }
 
 //  Prints all friends of the specified user in O(m) time where
@@ -125,11 +142,11 @@ void printFriends(HashTable ht, char *name){
 
     node = hashSearch(ht, name);
 
-    if(!node || node->friendList->num_of_friends == 0)
+    if(!node || !node->head)
         return;
 
-    for(cursor = node->friendList->head; cursor; cursor = cursor->next){
-        printf("%s ", formatName(cursor->name));
+    for(cursor = node->head; cursor; cursor = cursor->next){
+        printf("%s ", cursor->friend->name);
     }
     printf("\n");
 
@@ -166,11 +183,13 @@ void run(){
         //  Get user-input
         scanf("%[^\n]130s", buf);
 
-        buf = strLower(buf);
-
         instruction = strtok(buf, delim);
-        name1 = formatName(strtok(NULL, delim));
-        name2 = formatName(strtok(NULL, delim));
+        name1 = strtok(NULL, delim);
+        name2 = strtok(NULL, delim);
+
+        formatName(instruction);
+        formatName(name1);
+        formatName(name2);
 
         //  Carry out said input
         switch(*instruction){
@@ -192,9 +211,9 @@ void run(){
             case 'a':
                 PrintUsers(ht);
                 break;
-//            case 'd':
-//                deleteUser(ht, name1);
-//                break;
+            case 'd':
+                deleteUser(ht, name1);
+                break;
             case 'x':
                 terminateProgram(ht, buf);
                 return;

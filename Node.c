@@ -1,17 +1,15 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include "Node.h"
-#include "friends.h"
 
 //  Creates and returns a new node
 Node *createNode(const char *name){
     Node *newNode = malloc(sizeof(Node));
     if(newNode) {
         newNode->next = NULL;
-        newNode->friendList = createList();
+        newNode->head = NULL;
         if(name) {
             newNode->name = malloc(sizeof(char) * strlen(name) + 1);
             strcpy(newNode->name, name);
@@ -31,31 +29,48 @@ const char *freeNode(Node *target){
     }
 
     temp = target->name;
-    freeFriendsList(target->friendList);
+    safeDeleteFriendsList(&temp);
     free(target);
     return temp;
 }
 
-const char *delNode(Node **head, char *name){
+const char *deleteNode(Node **head, const char *name){
 
-    Node *temp = *head;
-    FriendNode *fr = (*head)->friendList->head;
+    Node *temp = *head, *prev;
+
+    if(!name){
+        fprintf(stderr, "ERROR: NULL INPUT TO FUNCTION deleteNode\n");
+        return NULL;
+    }
 
     if(temp && !strcmp(temp->name, name)){
-        *head = temp->next;
-        return (freeNode(temp));
+        *head = temp;
+        safeDeleteFriendsList(temp);
+        return freeNode(temp);;
+    }
+
+    while(temp && strcmp(temp->name, name) != 0){
+        prev = temp;
+        temp = temp->next;
+    }
+
+    if(temp){
+        prev->next = temp->next;
+        safeDeleteFriendsList(temp);
+        return freeNode(temp);
     }
 
     return NULL;
-
 }
 
-void addNode(Node **head, Node *newNode){
+void addNode(Node **head, const char *name){
 
-    if(!newNode){
+    if(!name){
         fprintf(stderr, "ERROR: NULL INPUT TO FUNCTION addNode\n");
         return;
     }
+
+    Node *newNode = createNode(name);
 
     newNode->next = *head;
     *head = newNode;

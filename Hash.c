@@ -62,7 +62,8 @@ static void internalHashInsert(HashTable ht, Node *node){
         }
     }
 
-    addNode(&ht->table[h], node);
+    node->next = ht->table[h];
+    ht->table[h] = node;
 
     ht->n++;
 }
@@ -104,9 +105,8 @@ void freeHashTable(HashTable ht){
     for(i = 0; i < ht->size; i++){
         for(cursor = ht->table[i]; cursor!= 0; cursor = next){
             next = cursor->next;
-            freeFriendsList(cursor->friendList);
-            free(cursor->name);
-            free(cursor);
+            unsafeDeleteFriendsList(cursor);
+            freeNode(cursor);
         }
     }
     free(ht->table);
