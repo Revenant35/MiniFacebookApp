@@ -1,4 +1,4 @@
-C:\Users\bbrow\AppData\Local\JetBrains\Toolbox\apps\CLion\ch-0\213.6777.58\bin\cmake\win\bin\cmake.exe -DCMAKE_BUILD_TYPE=Debug -G "CodeBlocks - MinGW Makefiles" C:\Users\bbrow\Documents\College\22SS\CS3050\MiniFacebookApp
+C:\Users\bbrow\AppData\Local\JetBrains\Toolbox\apps\CLion\ch-0\213.7172.20\bin\cmake\win\bin\cmake.exe -DCMAKE_BUILD_TYPE=Debug -G "CodeBlocks - MinGW Makefiles" C:\Users\bbrow\Documents\College\22SS\CS3050\MiniFacebookApp
 -- Configuring done
 -- Generating done
 -- Build files have been written to: C:/Users/bbrow/Documents/College/22SS/CS3050/MiniFacebookApp/cmake-build-debug

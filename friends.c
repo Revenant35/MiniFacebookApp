@@ -1,117 +1,199 @@
 
 #include <stdlib.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include "friends.h"
 
-static FriendNode *createFriendNode(Node *friend){
-    FriendNode *newNode = malloc(sizeof(FriendNode));
-    if(newNode) {
-        newNode->next = NULL;
-        newNode->friend = friend;
+#define MAX_LOAD_FACTOR (1)
+#define GROWTH_FACTOR (2)
+#define INITIAL_SIZE (4)
+
+static void internalInsert(FriendTable ht, FriendNode *friendNode){
+    unsigned long h;
+
+    h = hash(friendNode->friend->name) % ht->size;
+
+    friendNode->next = ht->table[h];
+    ht->table[h] = friendNode;
+
+    ht->n++;
+}
+
+static void internalDelete(FriendTable ht, Node *friend){
+    unsigned long h;
+    FriendNode *curr, *prev;
+
+    h = hash(friend->name) % ht->size;
+    curr = ht->table[h];
+
+    if(curr && curr->friend == friend){
+        ht->table[h] = curr->next;
+        free(curr);
+        curr = NULL;
     }
-    return newNode;
-}
 
-static Node *freeFriendNode(FriendNode **node){
-    Node *friend = (*node)->friend;
-    free(*node);
-    return friend;
-}
-
-static void freeFriendsList(FriendNode *head){
-    FriendNode *curr;
-
-    while(head){
-        curr = head;
-        head = head->next;
-        freeFriendNode(&curr);
-    }
-}
-
-void unsafeDeleteFriendsList(Node *self){
-    freeFriendsList(self->head);
-}
-
-void safeDeleteFriendsList(Node *self){
-    FriendNode *curr = self->head;
-
-    while(curr){
-        deleteFriend(curr->friend->head, self);
+    while(curr && curr->friend != friend){
+        prev = curr;
         curr = curr->next;
     }
 
-    freeFriendsList(self->head);
+    if(curr){
+        prev->next = curr->next;
+        free(curr);
+    }
 }
 
-static void internalInsert(FriendNode **head, Node *friend){
+static bool internalSearch(FriendTable ht, Node *friend){
+    unsigned long h;
+    FriendNode *curr;
 
-    FriendNode *newNode = createFriendNode(friend);
+    h = hash(friend->name) % ht->size;
+    curr = ht->table[h];
 
-    newNode->next = *head;
-    *head = newNode;
+    while(curr && curr->friend != friend){
+        curr = curr->next;
+    }
 
+    return ((!curr) ? false : true);
 }
 
-static void internalDelete(FriendNode **head, Node *friend){
+static FriendTable internalCreateTable(unsigned long size){
+    FriendTable ht;
+    int i;
+    ht = malloc(sizeof(*ht));
 
-    FriendNode *temp = *head, *prev;
+    if(!ht)
+        return NULL;
 
-    if(temp && temp->friend == friend){
-        *head = temp;
-        freeFriendNode(&temp);
-        return;
+    ht->size = size;
+    ht->n = 0;
+    ht->table = malloc(ht->size * sizeof(FriendNode));
+
+    if(!ht->table){
+        free(ht);
+        return NULL;
     }
 
-    while(temp && temp->friend != friend){
-        prev = temp;
-        temp = temp->next;
+    for(i = 0; i < ht->size; i++){
+        ht->table[i] = NULL;
     }
 
-    if(temp){
-        prev->next = temp->next;
-        freeFriendNode(&temp);
-    }
-
+    return ht;
 }
 
-void insertFriend(FriendNode *head, Node *friend){
+static void internalGrowTable(FriendTable ht){
+    FriendTable ht2;
+    struct friend_table_struct swap;
+    int i;
+    FriendNode *cursor = NULL;
 
-    if(!friend){
-        fprintf(stderr, "ERROR: INVALID INPUT TO FUNTION addFriend\n");
+    ht2 = internalCreateTable(ht->size * GROWTH_FACTOR);
+
+    if(!ht2)
         return;
+
+    for(i = 0; i < ht->size; i++){
+        for(cursor = ht->table[i]; cursor; cursor = cursor->next) {
+            internalInsert(ht2, cursor);
+        }
     }
 
-    if(searchForFriend(head, friend) != NULL){
-        fprintf(stderr, "ERROR: USER ALREADY EXISTS IN THIS FRIENDLIST\n");
-        return;
-    }
+    swap = *ht;
+    *ht = *ht2;
+    *ht2 = swap;
 
-    internalInsert(&head, friend);
+//    freeFriendTable(ht2);
 }
 
-FriendNode *searchForFriend(FriendNode *head, Node *friend){
-    FriendNode *cursor = head;
+static FriendNode *internalCreateNode(Node *node){
+    FriendNode *newFriendNode = malloc(sizeof(FriendNode));
 
-    while(cursor){
-        if(cursor->friend == friend)
-            return cursor;
-        cursor = cursor->next;
-    }
+    if(!newFriendNode)
+        return NULL;
 
-    return NULL;
+    newFriendNode->next = NULL;
+    newFriendNode->friend = node;
+
+    return newFriendNode;
 }
 
-void deleteFriend(FriendNode *head, Node *friend){
 
-    if(!friend){
-        fprintf(stderr, "ERROR: INVALID INPUT TO FUNTION deleteFriend\n");
+
+FriendTable extCreateFriendTable(){
+    return internalCreateTable(INITIAL_SIZE);
+}
+
+void extInsertFriend(Node *self, Node *friend){
+    if(!self || !self->friends || !friend)
         return;
-    }
 
-    if(searchForFriend(head, friend) != NULL){
-        fprintf(stderr, "ERROR: USER ALREADY EXISTS IN THIS FRIENDLIST\n");
+    internalInsert(self->friends, internalCreateNode(friend));
+
+    if(self->friends->n >= self->friends->size * MAX_LOAD_FACTOR)
+        internalGrowTable(self->friends);
+}
+
+void extDeleteFriend(Node *self, Node *friend){
+    if(!self || !self->friends || !friend)
         return;
-    }
 
-    internalDelete(&head, friend);
+    internalDelete(self->friends, friend);
+}
+
+bool extSearchFriend(Node *self, Node *friend){
+    if(!self || !self->friends || !friend)
+        return false;
+
+    return internalSearch(self->friends, friend);
+}
+
+void extPrintFriends(Node *self){
+    FriendNode *curr;
+    int i;
+
+    for(i = 0; i < self->friends->size; i++){
+        curr = self->friends->table[i];
+        if(curr) {
+            while (curr) {
+                printf("%s ", curr->friend->name);
+                curr = curr->next;
+            }
+            printf("\n");
+        }
+    }
+}
+
+void extUnsafeDeleteFriendsList(Node *self){
+    FriendNode *curr, *prev;
+    int i;
+
+    if(!self || !self->friends)
+        return;
+
+    for(i = 0; i < self->friends->size; i++){
+        curr = self->friends->table[i];
+        while(curr){
+            prev = curr;
+            curr = curr->next;
+            free(prev);
+        }
+    }
+}
+
+void extSafeDeleteFriendsList(Node *self){
+    FriendNode *curr, *prev;
+    int i;
+
+    if(!self || !self->friends)
+        return;
+
+    for(i = 0; i < self->friends->size; i++){
+        curr = self->friends->table[i];
+        while(curr){
+            prev = curr;
+            curr = curr->next;
+            internalDelete(prev->friend->friends, self);
+            free(prev);
+        }
+    }
 }
