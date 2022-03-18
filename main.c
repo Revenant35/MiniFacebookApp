@@ -3,8 +3,10 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <ctype.h>
+#include "hash.h"
 #include "users.h"
 
+#define INITIAL_SIZE (1024)
 #define MAX_INPUT_SIZE (130)
 
 //  Formats a given name
@@ -31,13 +33,13 @@ void run(){
     char *instruction, *name1, *name2, *buf = malloc(MAX_INPUT_SIZE * sizeof(char));
 
     //  Create a hashtable to store users in
-    UserTable ut = createUserTable();
+    HashTable ht = createTable(sizeof(struct hash_table_struct), INITIAL_SIZE);
 
     //  Delimiter used to parse the string from stdin
     const char delim[2] = " ";
 
     //  Check for malloc failure
-    if(!ut || !buf){
+    if(!ht || !buf){
         fprintf(stderr, "ERROR: UNABLE TO ALLOCATE SUFFICIENT MEMORY\n");
         return;
     }
@@ -59,28 +61,28 @@ void run(){
         //  Carry out said input
         switch(*instruction){
             case 'q':
-                printf(queryFriendship(ut, name1, name2) ? "Yes\n" : "No\n");
+                printf(searchFriend(ht, name1, name2) ? "Yes\n" : "No\n");
                 break;
             case 'l':
-                printFriends(ut, name1);
+                printFriends(ht, name1);
                 break;
             case 'p':
-                insertUser(ut, name1);
+                userInsert(ht, name1);
                 break;
             case 'f':
-                createFriendship(ut, name1, name2);
+                insertFriend(ht, name1, name2);
                 break;
             case 'u':
-                deleteFriendship(ut, name1, name2);
+                deleteFriend(ht, name1, name2);
                 break;
             case 'a':
-                printUsers(ut);
+                printUsers(ht);
                 break;
             case 'd':
-                deleteUser(ut, name1);
+                userDelete(ht, name1);
                 break;
             case 'x':
-                freeUserTable(ut);
+                freeUserTable(ht);
                 free(buf);
                 return;
         }

@@ -1,199 +1,91 @@
 
-#include <stdlib.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 #include "friends.h"
 
-#define MAX_LOAD_FACTOR (1)
-#define GROWTH_FACTOR (2)
-#define INITIAL_SIZE (4)
+static void internalFriendInsert(HashTable ht, char *username1, char *username2){
 
-static void internalInsert(FriendTable ht, FriendNode *friendNode){
-    unsigned long h;
+    Node *user1 = hashSearch(ht, username1);
+    Node *user2 = hashSearch(ht, username2);
 
-    h = hash(friendNode->friend->name) % ht->size;
-
-    friendNode->next = ht->table[h];
-    ht->table[h] = friendNode;
-
-    ht->n++;
-}
-
-static void internalDelete(FriendTable ht, Node *friend){
-    unsigned long h;
-    FriendNode *curr, *prev;
-
-    h = hash(friend->name) % ht->size;
-    curr = ht->table[h];
-
-    if(curr && curr->friend == friend){
-        ht->table[h] = curr->next;
-        free(curr);
-        curr = NULL;
-    }
-
-    while(curr && curr->friend != friend){
-        prev = curr;
-        curr = curr->next;
-    }
-
-    if(curr){
-        prev->next = curr->next;
-        free(curr);
-    }
-}
-
-static bool internalSearch(FriendTable ht, Node *friend){
-    unsigned long h;
-    FriendNode *curr;
-
-    h = hash(friend->name) % ht->size;
-    curr = ht->table[h];
-
-    while(curr && curr->friend != friend){
-        curr = curr->next;
-    }
-
-    return ((!curr) ? false : true);
-}
-
-static FriendTable internalCreateTable(unsigned long size){
-    FriendTable ht;
-    int i;
-    ht = malloc(sizeof(*ht));
-
-    if(!ht)
-        return NULL;
-
-    ht->size = size;
-    ht->n = 0;
-    ht->table = malloc(ht->size * sizeof(FriendNode));
-
-    if(!ht->table){
-        free(ht);
-        return NULL;
-    }
-
-    for(i = 0; i < ht->size; i++){
-        ht->table[i] = NULL;
-    }
-
-    return ht;
-}
-
-static void internalGrowTable(FriendTable ht){
-    FriendTable ht2;
-    struct friend_table_struct swap;
-    int i;
-    FriendNode *cursor = NULL;
-
-    ht2 = internalCreateTable(ht->size * GROWTH_FACTOR);
-
-    if(!ht2)
+    if(!user1 || !user2 || hashSearch((HashTable)user1->data, username2))
         return;
 
-    for(i = 0; i < ht->size; i++){
-        for(cursor = ht->table[i]; cursor; cursor = cursor->next) {
-            internalInsert(ht2, cursor);
-        }
-    }
-
-    swap = *ht;
-    *ht = *ht2;
-    *ht2 = swap;
-
-//    freeFriendTable(ht2);
+    hashInsert(user1->data, user2->key, user2);
+    hashInsert(user2->data, user1->key, user2);
 }
 
-static FriendNode *internalCreateNode(Node *node){
-    FriendNode *newFriendNode = malloc(sizeof(FriendNode));
+static void internalFriendDelete(HashTable ht, char *username1, char *username2){
 
-    if(!newFriendNode)
-        return NULL;
+    Node *user1 = hashSearch(ht, username1);
+    Node *user2 = hashSearch(ht, username2);
 
-    newFriendNode->next = NULL;
-    newFriendNode->friend = node;
-
-    return newFriendNode;
-}
-
-
-
-FriendTable extCreateFriendTable(){
-    return internalCreateTable(INITIAL_SIZE);
-}
-
-void extInsertFriend(Node *self, Node *friend){
-    if(!self || !self->friends || !friend)
+    if(!user1 || !user2)
         return;
 
-    internalInsert(self->friends, internalCreateNode(friend));
+    hashDelete((HashTable)user1->data, username2);
+    hashDelete((HashTable)user2->data, username1);
 
-    if(self->friends->n >= self->friends->size * MAX_LOAD_FACTOR)
-        internalGrowTable(self->friends);
 }
 
-void extDeleteFriend(Node *self, Node *friend){
-    if(!self || !self->friends || !friend)
-        return;
+static bool internalFriendSearch(HashTable ht, char *username1, char *username2){
 
-    internalDelete(self->friends, friend);
-}
+    Node *user1 = hashSearch(ht, username1);
+    Node *user2 = hashSearch(ht, username2);
 
-bool extSearchFriend(Node *self, Node *friend){
-    if(!self || !self->friends || !friend)
+    if(!user1 || !user2)
         return false;
 
-    return internalSearch(self->friends, friend);
+    return((hashSearch((HashTable)user1->data, username2) == NULL) ? false : true);
 }
 
-void extPrintFriends(Node *self){
-    FriendNode *curr;
+void insertFriend(HashTable ht, char *username1, char *username2){
+
+    if(!username1 || !username2 || !strcmp(username1, username2))
+        return;
+
+    internalFriendInsert(ht, username1, username2);
+}
+
+bool searchFriend(HashTable ht, char *username1, char *username2){
+    if(!username1 || !username2)
+        return false;
+
+    return internalFriendSearch(ht, username1, username2);
+}
+
+void deleteFriend(HashTable ht, char *username1, char *username2){
+    if(!username1 || !username2)
+        return;
+
+    internalFriendDelete(ht, username1, username2);
+}
+
+void printFriends(HashTable ht, char *username){
+
+    HashTable friends;
+    Node *curr, *temp;
     int i;
 
-    for(i = 0; i < self->friends->size; i++){
-        curr = self->friends->table[i];
+    if(!username)
+        return;
+
+    temp = hashSearch(ht, username);
+
+    if(!temp)
+        return;
+
+    friends = temp->data;
+
+    for(i = 0; i < friends->len; i++){
+        curr = friends->table[i];
         if(curr) {
             while (curr) {
-                printf("%s ", curr->friend->name);
+                printf("%s ", curr->key);
                 curr = curr->next;
             }
             printf("\n");
-        }
-    }
-}
-
-void extUnsafeDeleteFriendsList(Node *self){
-    FriendNode *curr, *prev;
-    int i;
-
-    if(!self || !self->friends)
-        return;
-
-    for(i = 0; i < self->friends->size; i++){
-        curr = self->friends->table[i];
-        while(curr){
-            prev = curr;
-            curr = curr->next;
-            free(prev);
-        }
-    }
-}
-
-void extSafeDeleteFriendsList(Node *self){
-    FriendNode *curr, *prev;
-    int i;
-
-    if(!self || !self->friends)
-        return;
-
-    for(i = 0; i < self->friends->size; i++){
-        curr = self->friends->table[i];
-        while(curr){
-            prev = curr;
-            curr = curr->next;
-            internalDelete(prev->friend->friends, self);
-            free(prev);
         }
     }
 }
